@@ -14,10 +14,14 @@
     --paper: #ebe9e2;
     --ink: #3a3a38;
     --ink-soft: #6b6b66;
-    --border-live: #c9c6bb;
+    --form-blue: #4a5568;
+    --sick-green: #3d4a3a;
+    --rust: #5c2f28;
     --accent-live: #4a5568;
+    --border-live: #c9c6bb;
     --dread: 0;
     --scanline-opacity: 0.06;
+    --vignette-op: 0;
     --serif: 'PT Serif', Georgia, 'Times New Roman', serif;
     --mono: 'IBM Plex Mono', 'Courier New', monospace;
     --current-font: var(--serif);
@@ -31,8 +35,7 @@
     --ink-soft: #9c6c6c;
     --border-live: #5e2626;
     --accent-live: #b33939;
-  }
-  
+  }  
   [data-theme="void"] {
     --bg: #050505;
     --paper: #0f0f0f;
@@ -52,13 +55,24 @@
     font-family: var(--current-font);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
-    transition: background-color 1.5s ease, color 1.5s ease;
-    overflow-x: hidden;
+    transition: background-color 1s ease, color 1s ease;
   }
 
   body {
-    filter: saturate(calc(1 - (var(--dread) * 0.025))) contrast(calc(1 + (var(--dread) * 0.015)));
+    filter: saturate(calc(1 - (var(--dread) * 0.025)));
     transition: filter 3s ease;
+    overflow-x: hidden;
+  }
+  
+  body.shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  @keyframes shake {
+    10%, 90% { transform: translate3d(-2px, 1px, 0) rotate(-0.5deg); }
+    20%, 80% { transform: translate3d(4px, -2px, 0) rotate(1deg); }
+    30%, 50%, 70% { transform: translate3d(-6px, 2px, 0) rotate(-1deg); }
+    40%, 60% { transform: translate3d(6px, -2px, 0) rotate(1deg); }
   }
 
   #app {
@@ -72,25 +86,64 @@
     z-index: 10;
   }
 
-  /* Background Canvas for Procedural Horror Elements */
-  #fxCanvas {
+  a { color: inherit; }
+
+  /* ---------- Background Graphics & Webcam ---------- */
+  .vignette {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,var(--vignette-op)) 100%);
+    transition: background 2s ease;
+  }
+  
+  #webcam-bg {
+    position: fixed;
+    inset: 0;
     width: 100vw;
     height: 100vh;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+    opacity: calc(var(--dread) * 0.035); /* Slowly appears as dread increases */
+    filter: grayscale(100%) contrast(150%) brightness(0.6);
+    mix-blend-mode: overlay;
+    transition: opacity 3s ease;
+    display: none;
+  }
+  [data-theme="void"] #webcam-bg { filter: grayscale(100%) contrast(200%) brightness(0.3) invert(1); mix-blend-mode: screen; }
+  [data-theme="crimson"] #webcam-bg { filter: grayscale(100%) contrast(150%) sepia(100%) hue-rotate(320deg) brightness(0.5); }
+
+  #watcher-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80vw;
+    max-width: 600px;
+    opacity: calc(var(--dread) * 0.04);
     pointer-events: none;
     z-index: 1;
-    opacity: 0;
     transition: opacity 2s ease;
     mix-blend-mode: multiply;
   }
-  
-  [data-theme="void"] #fxCanvas, [data-theme="crimson"] #fxCanvas { 
-    mix-blend-mode: screen; 
+  [data-theme="void"] #watcher-container { mix-blend-mode: screen; opacity: calc(var(--dread) * 0.08); }
+  [data-theme="crimson"] #watcher-container { mix-blend-mode: screen; opacity: calc(var(--dread) * 0.06); }
+
+  #watcher-svg {
+    width: 100%;
+    height: 100%;
+    stroke: var(--ink-soft);
+    fill: none;
+    stroke-width: 0.5;
+  }
+  #watcher-pupil {
+    fill: var(--ink);
+    transition: cx 0.1s ease, cy 0.1s ease;
   }
 
-  /* Header */
+  /* ---------- Header / masthead ---------- */
   .masthead {
     width: 100%;
     max-width: 620px;
@@ -112,14 +165,44 @@
     font-weight: 700;
     margin-top: 4px;
   }
+  .masthead .protocol {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+  }
 
-  /* Progress */
-  .progress-wrap { width: 100%; max-width: 620px; margin-bottom: 34px; }
-  .progress-track { width: 100%; height: 6px; background: rgba(128,128,128,0.2); border-radius: 3px; position: relative; }
-  .progress-fill { height: 100%; background: var(--accent-live); border-radius: 3px; width: 0%; transition: width 0.6s cubic-bezier(.4,0,.2,1), background 1.5s ease; }
-  .progress-label { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); margin-top: 6px; display: flex; justify-content: space-between; }
+  /* ---------- Progress bar ---------- */
+  .progress-wrap {
+    width: 100%;
+    max-width: 620px;
+    margin-bottom: 34px;
+  }
+  .progress-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(128,128,128,0.2);
+    border-radius: 3px;
+    overflow: visible;
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent-live);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1), background 1.5s ease;
+  }
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
 
-  /* Survey Card */
+  /* ---------- Card / question ---------- */
   .card {
     width: 100%;
     max-width: 620px;
@@ -127,159 +210,631 @@
     border: 1px solid var(--border-live);
     border-radius: 3px;
     padding: 36px 34px;
-    transition: opacity 0.55s ease, transform 0.55s ease, border-color 2s ease, background-color 1s ease, filter 0.2s ease;
+    transition: opacity 0.55s ease, transform 0.55s ease, border-color 2s ease, background-color 1s ease;
     box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-    position: relative;
   }
   .card.entering { opacity: 0; transform: translateY(8px); }
   .card.visible { opacity: 1; transform: translateY(0); }
   .card.leaving { opacity: 0; transform: translateY(-6px); }
 
-  /* UI Glitch class applied to card */
-  .glitch-heavy {
-    animation: rgbShift 0.15s infinite alternate;
-    filter: invert(10%) drop-shadow(4px 0px 0px red) drop-shadow(-4px 0px 0px blue);
-  }
-  
-  @keyframes rgbShift {
-    0% { transform: translate(1px, 1px); }
-    100% { transform: translate(-1px, -1px); }
+  .section-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
   }
 
-  .section-tag { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 14px; }
-  .prompt { font-family: var(--current-font); font-size: 19px; line-height: 1.5; margin-bottom: 22px; position: relative; }
-  
-  /* Text glitch */
+  .prompt {
+    font-family: var(--current-font);
+    font-size: 19px;
+    line-height: 1.5;
+    margin-bottom: 22px;
+    position: relative;
+  }
+
+  /* chromatic aberration flicker */
   .prompt.glitching { color: var(--ink); }
-  .prompt.glitching::before, .prompt.glitching::after {
-    content: attr(data-text); position: absolute; left: 0; top: 0; width: 100%; opacity: 0.55; pointer-events: none;
+  .prompt.glitching::before,
+  .prompt.glitching::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    opacity: 0.55;
+    pointer-events: none;
   }
-  .prompt.glitching::before { color: #c0453e; transform: translate(2.5px, -1px); clip-path: inset(0 0 55% 0); }
-  .prompt.glitching::after { color: #3e8fc0; transform: translate(-2.5px, 1px); clip-path: inset(45% 0 0 0); }
+  .prompt.glitching::before {
+    color: #c0453e;
+    transform: translate(2.5px, -1px);
+    clip-path: inset(0 0 55% 0);
+  }
+  .prompt.glitching::after {
+    color: #3e8fc0;
+    transform: translate(-2.5px, 1px);
+    clip-path: inset(45% 0 0 0);
+  }
 
-  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
-  .option { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border-live); border-radius: 3px; cursor: pointer; font-size: 15.5px; background: rgba(255,255,255,0.05); transition: border-color 0.3s ease, background 0.3s ease; }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-live);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 15.5px;
+    background: rgba(255,255,255,0.05);
+    transition: border-color 0.3s ease, background 0.3s ease;
+  }
   .option:hover { border-color: var(--accent-live); background: rgba(128,128,128,0.1); }
-  .option.selected { border-color: var(--accent-live); background: rgba(128,128,128,0.15); }
-  .option .dot { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--ink-soft); flex-shrink: 0; position: relative; }
-  .option.selected .dot::after { content: ''; position: absolute; top: 3px; left: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-live); }
-  
-  .error-msg { font-family: var(--mono); font-size: 12.5px; color: var(--accent-live); margin: -10px 0 16px; min-height: 16px; }
-
-  /* Controls & Settings */
-  .btn-row { display: flex; justify-content: flex-end; align-items: center; gap: 14px; min-height: 40px; }
-  .btn { font-family: var(--current-font); font-size: 14.5px; padding: 10px 22px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); border-radius: 2px; cursor: pointer; transition: background 0.3s ease, opacity 0.3s ease; }
-  .btn:disabled { opacity: 0.35; cursor: default; }
-  .btn:not(:disabled):hover { background: transparent; color: var(--ink); }
-
-  .controls-container { position: fixed; bottom: 14px; right: 14px; display: flex; gap: 8px; z-index: 60; }
-  .floating-btn { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); background: var(--paper); border: 1px solid var(--border-live); border-radius: 20px; padding: 6px 12px; cursor: pointer; user-select: none; transition: all 0.2s; }
-  .floating-btn:hover { background: var(--border-live); color: var(--bg); }
-  .footer-disclaimer { position: fixed; left: 14px; bottom: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); opacity: 0.55; max-width: 320px; z-index: 50; pointer-events: none; }
-
-  /* Effects */
-  .scanlines {
-    position: fixed; inset: 0; pointer-events: none; z-index: 100;
-    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 3px);
-    opacity: var(--scanline-opacity); transition: opacity 1s ease;
+  .option.selected {
+    border-color: var(--accent-live);
+    background: rgba(128,128,128,0.15);
   }
-  .scanlines.glitch { opacity: 0.25; }
+  .option .dot {
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink-soft);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .option.selected .dot::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-live);
+  }
 
-  .fade-to-black { position: fixed; inset: 0; background: #000; z-index: 400; opacity: 0; transition: opacity 2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
-  .fade-to-black.active { opacity: 1; pointer-events: all; }
-  .ending-text { font-family: var(--current-font); font-size: 21px; color: #fff; max-width: 500px; text-align: center; line-height: 1.6; opacity: 0; transition: opacity 2s ease 1s; padding: 20px;}
-  .ending-text.show { opacity: 1; }
+  .readback {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: -8px 0 18px;
+    min-height: 16px;
+  }
+
+  .error-msg {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--accent-live);
+    margin: -10px 0 16px;
+    min-height: 16px;
+  }
+
+  .btn-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 14px;
+    min-height: 40px;
+  }
+  .btn {
+    font-family: var(--current-font);
+    font-size: 14.5px;
+    padding: 10px 22px;
+    background: var(--ink);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.3s ease, opacity 0.3s ease, transform 0.1s ease;
+  }
+  .btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .btn:not(:disabled):hover { 
+    background: transparent; 
+    color: var(--ink);
+  }
+
+  .spinner-inline {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .spinner-inline.active { opacity: 1; }
+  .spinner-dots span {
+    display: inline-block;
+    animation: dotpulse 1.2s infinite ease-in-out;
+  }
+  .spinner-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .spinner-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes dotpulse {
+    0%, 80%, 100% { opacity: 0.25; }
+    40% { opacity: 1; }
+  }
+
+  .footer-disclaimer {
+    position: fixed;
+    left: 14px;
+    bottom: 10px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    opacity: 0.55;
+    max-width: 320px;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  /* ---------- Researcher note popup ---------- */
+  .researcher-note {
+    position: fixed;
+    font-family: var(--mono);
+    font-size: 12px;
+    background: #1f1f1d;
+    color: #c9c6bb;
+    border: 1px solid #444;
+    padding: 10px 13px;
+    max-width: 260px;
+    z-index: 200;
+    line-height: 1.4;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+  }
+  .researcher-note.top-right { top: 18px; right: 18px; }
+  .researcher-note.bottom-left { bottom: 18px; left: 18px; }
+
+  /* ---------- CRT scanline overlay ---------- */
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.4) 0px,
+      rgba(0,0,0,0.4) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    opacity: var(--scanline-opacity);
+    transition: opacity 1s ease;
+  }
+  .scanlines.glitch { opacity: 0.15; }
+
+  /* ---------- NEW: Boot/Start Screen ---------- */
+  .boot-screen {
+    width: 100%;
+    max-width: 620px;
+    background: var(--paper);
+    border: 1px solid var(--border-live);
+    border-radius: 3px;
+    padding: 40px 36px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .boot-eye {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 20px;
+  }
+  .boot-eye svg {
+    width: 100%;
+    height: 100%;
+    stroke: var(--ink);
+    fill: none;
+    stroke-width: 1.5;
+  }
+  .boot-screen h1 {
+    font-family: var(--current-font);
+    font-size: 24px;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .boot-screen .protocol-line {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-bottom: 30px;
+  }
+  .allowances-box {
+    width: 100%;
+    text-align: left;
+    background: rgba(0,0,0,0.03);
+    border: 1px solid var(--border-live);
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  .allowances-box h3 {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    margin: 0 0 15px 0;
+    color: var(--ink);
+    border-bottom: 1px solid var(--border-live);
+    padding-bottom: 8px;
+  }
+  .allowance-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .allowance-row input[type="checkbox"] {
+    margin-right: 12px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ink);
+  }
+  .allowance-desc {
+    font-size: 11px;
+    color: var(--ink-soft);
+    display: block;
+    margin-top: 2px;
+  }
   
-  /* Jump Scare Flash */
-  .jumpscare-flash { position: fixed; inset: 0; background: #fff; z-index: 999; opacity: 0; pointer-events: none; }
+  /* ---------- Endings ---------- */
+  .ending-overlay {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    text-align: center;
+    padding: 20px;
+    transition: background 3s ease;
+  }
+  .ending-text {
+    font-family: var(--current-font);
+    font-size: 21px;
+    max-width: 520px;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+  .fade-to-color {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 400;
+    opacity: 0;
+    transition: opacity 3.2s ease, background 3.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fade-to-color.active { opacity: 1; }
+  .closed-text {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #4a4a48;
+    opacity: 0;
+    transition: opacity 2s ease 1s, color 2s ease;
+  }
+  .closed-text.show { opacity: 1; }
 
-  @media (max-width: 640px) { .card { padding: 26px 22px; } .prompt { font-size: 17px; } }
-  @media (prefers-reduced-motion: reduce) { .card { transition: opacity 0.3s ease; } #fxCanvas { display: none; } }
+  /* ---------- Toggles & Settings ---------- */
+  .controls-container {
+    position: fixed;
+    bottom: 14px;
+    right: 14px;
+    display: flex;
+    gap: 8px;
+    z-index: 60;
+  }
+  .floating-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: var(--paper);
+    border: 1px solid var(--border-live);
+    border-radius: 20px;
+    padding: 6px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+  }
+  .floating-btn:hover { background: var(--border-live); color: var(--bg); }
+
+  /* Settings Modal */
+  .settings-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    background: var(--paper);
+    border: 1px solid var(--border-live);
+    padding: 24px;
+    z-index: 200;
+    display: none;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+  }
+  .settings-modal.active { display: block; }
+  .settings-modal h2 { font-family: var(--mono); font-size: 14px; margin: 0 0 16px; border-bottom: 1px solid var(--border-live); padding-bottom: 8px;}
+  .settings-row { margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .settings-row select { font-family: var(--mono); background: var(--bg); color: var(--ink); border: 1px solid var(--border-live); padding: 4px; }
+  .settings-close { display: block; width: 100%; margin-top: 20px; text-align: center; }
+
+  @media (max-width: 640px) {
+    .card, .boot-screen { padding: 26px 22px; }
+    .prompt { font-size: 17px; }
+    .masthead .title { font-size: 19px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { transition: opacity 0.3s ease; }
+    #watcher-container { display: none; }
+  }
 </style>
 </head>
 <body>
-<!-- Canvas for Generative Graphics -->
-<canvas id="fxCanvas"></canvas>
-<div class="scanlines" id="scanlines"></div>
-<div class="jumpscare-flash" id="jumpscare"></div>
+<!-- Hidden Webcam Element for unsettling background -->
+<video id="webcam-bg" autoplay playsinline muted></video>
 
+<!-- Ambient Horror Graphic -->
+<div class="vignette"></div>
+<div id="watcher-container">
+  <svg id="watcher-svg" viewBox="0 0 100 100">
+    <path d="M 10 50 Q 50 10 90 50 Q 50 90 10 50" stroke-width="0.5"/>
+    <circle id="watcher-pupil" cx="50" cy="50" r="8" />
+  </svg>
+</div>
+
+<div class="scanlines" id="scanlines"></div>
 <div id="app"></div>
-<div class="footer-disclaimer">Fictional horror experience. Content Warning: memory loss, jump scares, visual glitches. Enable sound.</div>
+<div class="footer-disclaimer">This is a fictional interactive horror story. No real data is transmitted or stored. Contains themes of psychological unease, paranoia, and memory loss.</div>
 
 <div class="controls-container">
   <div class="floating-btn" id="soundToggle">sound: off</div>
-  <div class="floating-btn" id="themeToggle">theme: clinical</div>
+  <div class="floating-btn" id="settingsBtn">⚙️ settings</div>
+</div>
+
+<!-- Settings Modal -->
+<div class="settings-modal" id="settingsModal">
+  <h2>Configuration</h2>
+  <div class="settings-row">
+    <span>Visual Theme</span>
+    <select id="themeSelect">
+      <option value="default">Clinical (Default)</option>
+      <option value="crimson">Crimson</option>
+      <option value="void">The Void</option>
+    </select>
+  </div>
+  <div class="settings-row">
+    <span>Typography</span>
+    <select id="fontSelect">
+      <option value="serif">Serif (Formal)</option>
+      <option value="mono">Monospace (Terminal)</option>
+    </select>
+  </div>
+  <div class="settings-row">
+    <span>CRT Scanlines</span>
+    <select id="scanlineSelect">
+      <option value="0">Off</option>
+      <option value="0.06" selected>Light</option>
+      <option value="0.15">Heavy</option>
+    </select>
+  </div>
+  <div class="settings-row">
+    <span>Haptic / Shake</span>
+    <input type="checkbox" id="shakeToggle" checked>
+  </div>
+  <div class="settings-row">
+    <span>Webcam Background</span>
+    <input type="checkbox" id="camToggle" disabled>
+  </div>
+  <button class="btn settings-close" id="closeSettingsBtn">Close</button>
 </div>
 
 <script>
 (function() {
   "use strict";
 
+  /* =========================================================
+     STATE
+  ========================================================= */
   const state = {
-    screen: 'consent',
+    screen: 'consent',       // consent | survey | ending
     qIndex: 0,
-    answers: {},
-    name: 'Subject',
+    answers: {},             
+    name: 'Subject',         
     dread: 0,
     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     soundOn: false,
-    themeIndex: 0,
-    themes: ['default', 'crimson', 'void'],
-    endings: { conformity: 0, rebellion: 0, madness: 0 }
+    cameraOn: false,
+    stream: null,
+    hasDownloadedNote: false
   };
 
+  /* =========================================================
+     QUESTION DATA (More visceral horror integration)
+  ========================================================= */
   const QUESTIONS = [
+    // ---------------- Section 1 ----------------
     { id: 'q1', section: 1, sectionTitle: 'Intake', type: 'single',
-      prompt: 'Please select your designated identifier.',
-      options: ['Subject A-90', 'Guest', 'I was not given one', 'The name on the door'],
-      effect: (val) => { if(val === 'Subject A-90') state.endings.conformity++; else state.endings.rebellion++; } },
+      prompt: 'Please provide your designated identifier for record-keeping purposes.',
+      options: ['Subject A-90', 'Guest', 'I was not given one', 'The name on the door'] },
     { id: 'q2', section: 1, sectionTitle: 'Intake', type: 'single',
-      prompt: 'On an average night, how many hours do you sleep?',
-      options: ['Fewer than 5', '5–6', '7–8', 'More than 8'] },
-    
-    { id: 'q3', section: 2, sectionTitle: 'Preferences', type: 'single',
-      prompt: 'Do you ever feel watched while alone in a room with the door closed?',
-      options: ['Never', 'Once', 'A few times', 'Regularly'],
-      effect: (val) => { if(val === 'Regularly') state.endings.madness++; } },
-    { id: 'q4', section: 2, sectionTitle: 'Preferences', type: 'single',
-      prompt: 'After locking a door, how often do you check it again?',
-      options: ['Never', 'Once', 'Twice', 'More than twice'] },
+      prompt: 'How many years do you believe you have left before you forget this entirely?',
+      options: ['Less than 5', 'A few decades', 'I am already forgetting', 'It never ends'] },
+    { id: 'q3', section: 1, sectionTitle: 'Intake', type: 'single',
+      prompt: 'When you lie in the dark, how long does it take you to feel safe?',
+      options: ['A few minutes', 'Over an hour', 'I never feel safe', 'Until the sun comes up'],
+      flags: { falseValidation: true } },
+    { id: 'q4', section: 1, sectionTitle: 'Intake', type: 'single',
+      prompt: 'How would you describe your physiological state right now?',
+      options: ['Calm', 'Elevated heart rate', 'Sweating', 'Watched', 'Numb'] },
+    { id: 'q5', section: 1, sectionTitle: 'Intake', type: 'single',
+      prompt: 'Are you absolutely sure you locked the door to the room you are in?',
+      options: ['Yes', 'No', 'I don\'t have a door', 'Someone else has a key'] },
 
-    { id: 'q5', section: 3, sectionTitle: 'Perceptual Baseline', type: 'single',
+    // ---------------- Section 2 ----------------
+    { id: 'q6', section: 2, sectionTitle: 'Preferences', type: 'single',
+      prompt: 'When the temperature of the room suddenly drops, what do you assume is standing behind you?',
+      options: ['A draft from the window', 'Nothing', 'A memory', 'I refuse to look'] },
+    { id: 'q7', section: 2, sectionTitle: 'Preferences', type: 'single',
+      prompt: 'When you whisper to yourself in the dark, whose voice answers back?',
+      options: ['My own', 'Silence', 'A voice I haven\'t heard in years', 'It doesn\'t use words'] },
+    { id: 'q8', section: 2, sectionTitle: 'Preferences', type: 'single',
+      prompt: 'Have you ever noticed your reflection blink slightly after you do?',
+      options: ['Never', 'Once, when I was tired', 'I avoid mirrors', 'It\'s doing it right now'] },
+    { id: 'q9', section: 2, sectionTitle: 'Preferences', type: 'single',
+      prompt: 'After turning off the lights, do you walk or run to your bed?',
+      options: ['Walk calmly', 'Walk quickly', 'Run', 'I sleep with the lights on'] },
+    { id: 'q10', section: 2, sectionTitle: 'Preferences', type: 'single',
+      prompt: 'Do you dream of places that do not exist, but feel like home?',
+      options: ['Yes', 'No', "I don't remember my dreams", "They aren't dreams"] },
+
+    // ---------------- Section 3 ----------------
+    { id: 'q11', section: 3, sectionTitle: 'Perceptual Baseline', type: 'single',
       prompt: 'As a child, did you ever count the moon and arrive at a number other than one?',
-      options: ['No, never', 'Once, and I dismissed it', 'More than once', "I don't recall counting"],
-      flags: { progressGlitch: true },
-      effect: (val) => { if(val === 'More than once') state.endings.madness += 2; } },
-    { id: 'q6', section: 3, sectionTitle: 'Perceptual Baseline', type: 'single',
-      prompt: 'Think of your childhood bedroom. Was there a wall without a door or a window that you avoided?',
-      options: ['No such wall existed', "Yes, but I don't know why", "I've never thought about it until now", "I'd rather not answer"],
-      flags: { overwrite: true, audioSting: true } },
+      options: ['No, never', 'Once, and I dismissed it', 'More than once', "I don't look at the sky"],
+      flags: { progressGlitch: 'stutter' } },
+    { id: 'q12', section: 3, sectionTitle: 'Perceptual Baseline', type: 'single',
+      prompt: 'Think of your childhood bedroom. Was there a dark corner that you knew was occupied?',
+      options: ['No', "Yes, but I ignored it", "I've never thought about it until now", "It followed me here"],
+      flags: { overwrite: true, progressGlitch: 'jump' } },
+    { id: 'q13', section: 3, sectionTitle: 'Perceptual Baseline', type: 'single',
+      prompt: 'Describe where you were on the day the sky turned the wrong color.',
+      options: ["Hiding under a table", "Looking directly at it", "I was not born yet", "It hasn't happened yet"],
+      flags: { progressGlitch: 'mismatch' } },
 
-    { id: 'q7', section: 4, sectionTitle: 'Perceptual Baseline II', type: 'single',
-      prompt: "In your kindergarten class photograph, who is the person standing behind you that isn't listed on the roster?",
-      options: ["My imaginary friend", "A dark shadow", "The smiling man", "Me, somehow"],
-      flags: { titleHijack: true, heavyGlitch: true } },
-    
-    { id: 'q8', section: 5, sectionTitle: 'Follow-Up', type: 'single',
-      prompt: 'We appreciate you telling us about {name}. Are you sure you are alone?',
-      options: ['Yes', 'No', "I'm not sure anymore", 'Stop asking me that'],
-      effect: (val) => { if(val === 'Stop asking me that') state.endings.rebellion += 2; else if (val === 'Yes') state.endings.conformity++; } },
-    
-    { id: 'q9', section: 6, sectionTitle: 'Final Phase', type: 'single',
-      prompt: 'Say your name out loud. What happened when you did?',
-      options: ["Nothing at all", "Someone whispered it back", "The lights flickered", "I forgot how to speak"],
-      flags: { jumpScare: true } },
-    { id: 'q10', section: 6, sectionTitle: 'Final Phase', type: 'single',
+    // ---------------- Section 4 ----------------
+    { id: 'q14', section: 4, sectionTitle: 'Perceptual Baseline II', type: 'single',
+      prompt: 'When the lights in a room flicker twice and settle, do you count the shadows to make sure none are missing?',
+      options: ["I've never noticed shadows behaving that way", 'Yes, quietly', 'I try not to', "There is an extra one now"],
+      flags: { overwrite: true } },
+    { id: 'q15', section: 4, sectionTitle: 'Perceptual Baseline II', type: 'single',
+      prompt: "In your oldest family photograph, who is the person standing in the background with no face?",
+      options: ["A stranger", "A trick of the light", "The smiling man", "Me"],
+      flags: { researcherNote: 'SUBJECT RECOGNIZES IT.\nLOG TIMESTAMP.', progressGlitch: 'stutter' } },
+    { id: 'q16', section: 4, sectionTitle: 'Perceptual Baseline II', type: 'single',
+      prompt: 'How many corners does the room you are currently in have?',
+      options: ['3', '4', '5', "Too many to count"],
+      flags: { overwrite: true, progressGlitch: 'jump' } },
+
+    // ---------------- Section 5 ----------------
+    { id: 'q17', section: 5, sectionTitle: 'Follow-Up', type: 'single',
+      prompt: "Thank you for your patience. Regarding the number you gave us for the room's corners — are you certain?",
+      options: ['Yes', 'No, I may have miscounted', "I didn't give a number", 'Please let me leave'] },
+    { id: 'q18', section: 5, sectionTitle: 'Follow-Up', type: 'single',
+      prompt: 'We appreciate you offering up your identity, {name}. It belongs to the archive now.',
+      options: ["I didn't say that", "You're welcome", "Who are you?", "Stop it"],
+      flags: { titleHijack: true, researcherNote: 'PHASE 2 INITIATED.\nSUBJECT DATA SECURED.', triggerDownload: true } },
+    { id: 'q19', section: 5, sectionTitle: 'Follow-Up', type: 'single',
+      prompt: 'Look behind you. Did you see it move?',
+      options: ['There is nothing there', 'I am not turning around', 'Yes', "It's right beside me now"] },
+
+    // ---------------- Section 6 ----------------
+    { id: 'q20', section: 6, sectionTitle: 'Personalized Assessment', type: 'single',
+      prompt: '{name}, when did you first realize this machine was observing your physical space?',
+      options: ["The very first question", "Just now", "I knew before I clicked", "I am still asleep"] },
+    { id: 'q21', section: 6, sectionTitle: 'Personalized Assessment', type: 'single',
+      prompt: 'Do you remember the last time you closed your eyes and saw static instead of darkness?',
+      options: ['Yes', 'No', "I see it right now", "I don't want to think about it"],
+      flags: { overwrite: true } },
+    { id: 'q22', section: 6, sectionTitle: 'Personalized Assessment', type: 'single',
+      prompt: 'Describe the sound the room makes when you stop breathing.',
+      options: ["A low hum", "Someone else breathing", "Scratching inside the walls", "Absolute, deafening silence"],
+      flags: { researcherNote: 'SUBJECT IS COMPROMISED.\nPROCEED TO FINAL PHASE.' } },
+
+    // ---------------- Section 7 ----------------
+    { id: 'q23', section: 7, sectionTitle: 'Final Phase', type: 'single',
+      prompt: 'When was the last time you felt certain you were entirely alone?',
+      options: ["Years ago", "Right now", "I am never alone", "When I close my eyes"] },
+    { id: 'q24', section: 7, sectionTitle: 'Final Phase', type: 'single',
+      prompt: 'Where were you before you became trapped in this interface?',
+      options: ["I don't remember", "In my bed", "At work", "Waiting for the signal"] },
+    { id: 'q25', section: 7, sectionTitle: 'Final Phase', type: 'single',
+      prompt: 'Say your name out loud, {name}. What happened when you did?',
+      options: ["Nothing at all", "Something whispered it back", "The screen flickered", "I forgot how to speak"] },
+    { id: 'q26', section: 7, sectionTitle: 'Final Phase', type: 'single',
+      prompt: 'What is on the other side of the screen?',
+      options: ["Just wires", "Another version of me", "Teeth", "An endless hallway"] },
+    { id: 'q27', section: 7, sectionTitle: 'Final Phase', type: 'single',
       prompt: 'We are finished. Choose your final truth. It no longer needs to be real.',
-      options: ["I accept my fate", "Let me out of here", "I will wake up soon", "There is no way out"],
-      effect: (val) => { 
-        if(val === 'I accept my fate') state.endings.conformity += 5; 
-        if(val === 'Let me out of here') state.endings.rebellion += 5;
-        if(val === 'I will wake up soon' || val === 'There is no way out') state.endings.madness += 5;
-      } }
+      options: ["I accept my fate", "Let me out of here", "I will wake up soon", "There is no way out"] }
   ];
 
-  let audioCtx, masterGain, droneOsc1, droneOsc2, noiseNode, filterNode, lfoNode;
+  const SECTION_DREAD = { 1: 0, 2: 1, 3: 3, 4: 5, 5: 7, 6: 8, 7: 10 };
+
+  function fillName(str) {
+    return str.replace('{name}', state.name);
+  }
+
+  /* =========================================================
+     WEBCAM & SYSTEM INTEGRATION (Unexpected Horror)
+  ========================================================= */
+  async function initWebcam() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.getElementById('webcam-bg');
+      video.srcObject = stream;
+      video.style.display = 'block';
+      state.stream = stream;
+      state.cameraOn = true;
+      document.getElementById('camToggle').checked = true;
+      document.getElementById('camToggle').disabled = false;
+    } catch (err) {
+      console.warn("Webcam access denied or unavailable.");
+      state.cameraOn = false;
+      document.getElementById('camToggle').checked = false;
+      document.getElementById('camToggle').disabled = true;
+    }
+  }
+
+  function toggleWebcam(forceState) {
+    const video = document.getElementById('webcam-bg');
+    if (forceState !== undefined) {
+      state.cameraOn = forceState;
+    } else {
+      state.cameraOn = !state.cameraOn;
+    }
+    
+    if (state.cameraOn && state.stream) {
+      video.style.display = 'block';
+    } else {
+      video.style.display = 'none';
+    }
+  }
+
+  function downloadCreepyNote() {
+    if (state.hasDownloadedNote) return;
+    state.hasDownloadedNote = true;
+    
+    const content = `We have been watching you through the glass, ${state.name}.\n\nThe survey is a distraction.\nDo not look away from the screen.\nIf you look away, they will know you are aware of them.\n\nThere are 5 corners in your room.\nDon't look at the 5th one.`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `truth_about_${state.name}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+
+
+  /* =========================================================
+     AUDIO ENGINE (Advanced Horror Synthesis)
+  ========================================================= */
+  let audioCtx, masterGain;
+  let humOsc1, humOsc2, noiseNode, filterNode, lfoNode;
+  let heartbeatTimeout;
   
   function initAudio() {
     if (audioCtx) return;
@@ -291,27 +846,31 @@
     masterGain.connect(audioCtx.destination);
   }
 
-  function startAmbientHorror() {
+  function startHorrorAudio() {
     if (!audioCtx) initAudio();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     
     masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.7, audioCtx.currentTime + 3);
+    masterGain.gain.linearRampToValueAtTime(0.8, audioCtx.currentTime + 3);
 
-    // Dissonant Beating Drones (generative ambient)
-    droneOsc1 = audioCtx.createOscillator();
-    droneOsc2 = audioCtx.createOscillator();
-    droneOsc1.type = 'sine'; droneOsc2.type = 'triangle';
-    droneOsc1.frequency.value = 45; // Low rumble
-    droneOsc2.frequency.value = 47.5; // Creates a beating dissonance
+    // 1. Dissonant Beating Drones
+    humOsc1 = audioCtx.createOscillator();
+    humOsc2 = audioCtx.createOscillator();
+    humOsc1.type = 'sine';
+    humOsc2.type = 'sine';
+    humOsc1.frequency.value = 45; 
+    humOsc2.frequency.value = 47; 
     
     let droneGain = audioCtx.createGain();
-    droneGain.gain.value = 0.25;
-    droneOsc1.connect(droneGain); droneOsc2.connect(droneGain);
+    droneGain.gain.value = 0.2;
+    humOsc1.connect(droneGain);
+    humOsc2.connect(droneGain);
     droneGain.connect(masterGain);
-    droneOsc1.start(); droneOsc2.start();
+    
+    humOsc1.start();
+    humOsc2.start();
 
-    // Procedural Breathing Noise
+    // 2. Breathing White Noise
     const bufferSize = audioCtx.sampleRate * 2;
     const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
@@ -325,310 +884,711 @@
     filterNode.type = 'lowpass';
     filterNode.frequency.value = 200; 
 
+    // LFO to modulate filter (creating breath effect)
     lfoNode = audioCtx.createOscillator();
     lfoNode.type = 'sine';
-    lfoNode.frequency.value = 0.12; // Breathing rate
-    
+    lfoNode.frequency.value = 0.15; // Slow breathing rate
     let lfoGain = audioCtx.createGain();
-    lfoGain.gain.value = 800; // Modulate cutoff frequency
-    lfoNode.connect(lfoGain); lfoGain.connect(filterNode.frequency);
+    lfoGain.gain.value = 600; // Sweep up to 800Hz
+    
+    lfoNode.connect(lfoGain);
+    lfoGain.connect(filterNode.frequency);
     
     let breathGain = audioCtx.createGain();
-    breathGain.gain.value = 0; // Starts quiet
-    state.breathGainNode = breathGain; // store for dread updates
+    breathGain.gain.value = 0.05; // Quiet initially
 
     noiseNode.connect(filterNode);
     filterNode.connect(breathGain);
     breathGain.connect(masterGain);
 
-    lfoNode.start(); noiseNode.start();
+    lfoNode.start();
+    noiseNode.start();
+
+    state.breathGainNode = breathGain; 
+
+    // 3. Start Heartbeat Loop
+    pulseHeart();
   }
 
-  function playScareChord() {
-    if (!state.soundOn || !audioCtx) return;
+  function pulseHeart() {
+    clearTimeout(heartbeatTimeout);
+    if(!audioCtx || !state.soundOn || state.dread < 2) {
+       heartbeatTimeout = setTimeout(pulseHeart, 1000);
+       return;
+    }
+    
+    const t = audioCtx.currentTime;
+    
+    // Lub
     const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(45, t);
+    osc1.frequency.exponentialRampToValueAtTime(10, t + 0.3);
+    gain1.gain.setValueAtTime(0, t);
+    gain1.gain.linearRampToValueAtTime(0.6, t + 0.05);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc1.connect(gain1); gain1.connect(masterGain);
+    osc1.start(t); osc1.stop(t + 0.3);
+
+    // Dub
     const osc2 = audioCtx.createOscillator();
-    const osc3 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(50, t + 0.25);
+    osc2.frequency.exponentialRampToValueAtTime(10, t + 0.55);
+    gain2.gain.setValueAtTime(0, t + 0.25);
+    gain2.gain.linearRampToValueAtTime(0.6, t + 0.3);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    osc2.connect(gain2); gain2.connect(masterGain);
+    osc2.start(t + 0.25); osc2.stop(t + 0.55);
+
+    // Speed increases with dread
+    const speed = Math.max(400, 1500 - (state.dread * 120)); 
+    heartbeatTimeout = setTimeout(pulseHeart, speed);
+  }
+
+  function stopHorrorAudio() {
+    if (masterGain) {
+      masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+      setTimeout(() => {
+        try { humOsc1.stop(); humOsc2.stop(); noiseNode.stop(); lfoNode.stop(); clearTimeout(heartbeatTimeout); } catch(e){}
+      }, 1100);
+    }
+  }
+
+  function playChime() {
+    if (!state.soundOn || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    
-    osc1.type = 'sawtooth'; osc2.type = 'square'; osc3.type = 'sawtooth';
-    osc1.frequency.value = 110; osc2.frequency.value = 116.5; osc3.frequency.value = 55;
-    
-    gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
-    
-    osc1.connect(gain); osc2.connect(gain); osc3.connect(gain);
+    osc.type = 'sine';
+    osc.frequency.value = 660 - (state.dread * 20); 
+    gain.gain.value = 0;
+    osc.connect(gain);
     gain.connect(masterGain);
     
-    osc1.start(); osc2.start(); osc3.start();
-    osc1.stop(audioCtx.currentTime + 1.6); osc2.stop(audioCtx.currentTime + 1.6); osc3.stop(audioCtx.currentTime + 1.6);
+    const t = audioCtx.currentTime;
+    gain.gain.linearRampToValueAtTime(0.08, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    osc.start(t);
+    osc.stop(t + 0.95);
   }
 
-  document.getElementById('soundToggle').addEventListener('click', () => {
-    state.soundOn = !state.soundOn;
-    document.getElementById('soundToggle').textContent = state.soundOn ? 'sound: on' : 'sound: off';
-    if(state.soundOn) startAmbientHorror();
-    else if(masterGain) masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+  function playGlitchSound() {
+    if (!state.soundOn || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(100 + Math.random()*400, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.3);
+    
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+  }
+
+  function playThud() {
+    if(!audioCtx || !state.soundOn) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+    gain.gain.setValueAtTime(1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.connect(gain); gain.connect(masterGain);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+    
+    if(!state.reducedMotion) {
+        document.body.classList.add('shake');
+        setTimeout(() => document.body.classList.remove('shake'), 400);
+    }
+  }
+
+  function toggleSound(forceState) {
+    if (forceState !== undefined) {
+      state.soundOn = forceState;
+    } else {
+      state.soundOn = !state.soundOn;
+    }
+    const btn = document.getElementById('soundToggle');
+    btn.textContent = state.soundOn ? 'sound: on' : 'sound: off';
+    if (state.soundOn) { startHorrorAudio(); }
+    else { stopHorrorAudio(); }
+  }
+
+  document.getElementById('soundToggle').addEventListener('click', () => toggleSound());
+
+  /* =========================================================
+     CUSTOMIZATION MENU
+  ========================================================= */
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsModal = document.getElementById('settingsModal');
+  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+
+  settingsBtn.addEventListener('click', () => { settingsModal.classList.add('active'); });
+  closeSettingsBtn.addEventListener('click', () => { settingsModal.classList.remove('active'); });
+
+  document.getElementById('themeSelect').addEventListener('change', (e) => {
+    if(e.target.value === 'default') document.body.removeAttribute('data-theme');
+    else document.body.setAttribute('data-theme', e.target.value);
   });
 
-  document.getElementById('themeToggle').addEventListener('click', () => {
-    state.themeIndex = (state.themeIndex + 1) % state.themes.length;
-    const t = state.themes[state.themeIndex];
-    if(t === 'default') document.body.removeAttribute('data-theme');
-    else document.body.setAttribute('data-theme', t);
-    document.getElementById('themeToggle').textContent = 'theme: ' + t;
+  document.getElementById('fontSelect').addEventListener('change', (e) => {
+    const font = e.target.value === 'serif' ? 'var(--serif)' : 'var(--mono)';
+    document.documentElement.style.setProperty('--current-font', font);
   });
 
-  const canvas = document.getElementById('fxCanvas');
-  const ctx = canvas.getContext('2d');
-  let spirals = [];
+  document.getElementById('scanlineSelect').addEventListener('change', (e) => {
+    document.documentElement.style.setProperty('--scanline-opacity', e.target.value);
+  });
 
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
+  document.getElementById('shakeToggle').addEventListener('change', (e) => {
+    state.reducedMotion = !e.target.checked;
+    if(state.reducedMotion) document.getElementById('watcher-container').style.display = 'none';
+    else document.getElementById('watcher-container').style.display = 'block';
+  });
 
-  // Draw hypnotic Junji Ito-style spirals that intensify with dread
-  function animateCanvas() {
-    if (state.reducedMotion || state.dread < 2) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      requestAnimationFrame(animateCanvas);
-      return;
-    }
+  document.getElementById('camToggle').addEventListener('change', (e) => {
+    toggleWebcam(e.target.checked);
+  });
 
-    ctx.fillStyle = `rgba(${state.themeIndex===1?'28,10,10':'242,241,236'}, 0.05)`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  /* =========================================================
+     GRAPHICS & EYE TRACKING
+  ========================================================= */
+  const pupil = document.getElementById('watcher-pupil');
+  document.addEventListener('mousemove', (e) => {
+    if (state.reducedMotion || state.dread < 3) return;
+    
+    const jitter = state.dread >= 9 ? (Math.random() * 4 - 2) : 0;
+    const x = (e.clientX / window.innerWidth) * 100;
+    const y = (e.clientY / window.innerHeight) * 100;
+    
+    const cx = 40 + (x * 0.2) + jitter;
+    const cy = 40 + (y * 0.2) + jitter;
+    pupil.setAttribute('cx', cx);
+    pupil.setAttribute('cy', cy);
+  });
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const time = Date.now() * 0.0005 * (1 + state.dread * 0.2);
-    const maxRadius = Math.max(canvas.width, canvas.height) * (state.dread * 0.1);
-
-    ctx.beginPath();
-    ctx.strokeStyle = state.themeIndex === 2 ? '#d4d4d4' : '#3a3a38';
-    ctx.lineWidth = 1 + (state.dread * 0.3);
-
-    for (let angle = 0; angle <= Math.PI * 12; angle += 0.1) {
-      const radius = (maxRadius / (Math.PI * 12)) * angle;
-      const x = centerX + radius * Math.cos(angle - time);
-      const y = centerY + radius * Math.sin(angle - time);
-      if (angle === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-
-    requestAnimationFrame(animateCanvas);
-  }
-  animateCanvas();
-
+  /* =========================================================
+     DREAD-DRIVEN CSS VARS
+  ========================================================= */
   function applyDread(level) {
     state.dread = level;
     document.documentElement.style.setProperty('--dread', level);
-    canvas.style.opacity = Math.min(level * 0.15, 0.8);
     
+    // Intensify Vignette 
+    document.documentElement.style.setProperty('--vignette-op', Math.min(level * 0.08, 0.85));
+
     if(state.breathGainNode && audioCtx) {
-       state.breathGainNode.gain.linearRampToValueAtTime(Math.min(level * 0.05, 0.4), audioCtx.currentTime + 1);
-       if(lfoNode) lfoNode.frequency.linearRampToValueAtTime(0.12 + (level*0.03), audioCtx.currentTime + 1);
+       state.breathGainNode.gain.linearRampToValueAtTime(0.05 + (level * 0.02), audioCtx.currentTime + 2);
+    }
+    if(level >= 5 && lfoNode && audioCtx) {
+       lfoNode.frequency.linearRampToValueAtTime(0.3 + (level*0.05), audioCtx.currentTime + 2); 
     }
   }
 
-  function triggerGlitch() {
+  /* =========================================================
+     MICRO-GLITCH LOOP
+  ========================================================= */
+  let glitchTimer = null;
+  function scheduleGlitch() {
     if (state.reducedMotion) return;
+    const base = 26000; 
+    const variance = 14000;
+    const speedUp = Math.max(0.2, 1 - state.dread * 0.1);
+    const delay = (base - state.dread * 1800 + (Math.random() * variance)) * speedUp;
+    
+    glitchTimer = setTimeout(() => {
+      runRandomGlitch();
+      scheduleGlitch();
+    }, Math.max(2500, delay));
+  }
+
+  function runRandomGlitch() {
+    if (state.screen !== 'survey') return;
     const promptEl = document.querySelector('.prompt');
-    if(promptEl) {
+    const roll = Math.random();
+    
+    // Random hard thud jump scare at high dread
+    if (state.dread >= 6 && roll < 0.25) {
+       playThud();
+       // Flash webcam aggressively if enabled
+       if(state.cameraOn && state.stream) {
+         const vid = document.getElementById('webcam-bg');
+         const oldFilter = vid.style.filter;
+         vid.style.filter = 'grayscale(0) contrast(300%) invert(1)';
+         vid.style.opacity = '0.8';
+         setTimeout(() => {
+           vid.style.filter = oldFilter;
+           vid.style.opacity = `calc(var(--dread) * 0.035)`;
+         }, 150);
+       }
+    }
+
+    if (roll < 0.45 && promptEl) {
       promptEl.setAttribute('data-text', promptEl.textContent);
       promptEl.classList.add('glitching');
-      setTimeout(() => promptEl.classList.remove('glitching'), 100 + Math.random() * 150);
+      if (state.dread > 4) playGlitchSound();
+      setTimeout(() => promptEl.classList.remove('glitching'), 90 + Math.random() * 80);
+    } 
+    else if (roll < 0.75 && state.dread >= 2) {
+      const sl = document.getElementById('scanlines');
+      sl.classList.add('glitch');
+      setTimeout(() => sl.classList.remove('glitch'), 800 + Math.random() * 500);
+    } 
+    else if (state.dread >= 4 && promptEl) {
+      const original = promptEl.textContent;
+      const decoys = ['IT IS STILL WAITING', 'DO NOT LOOK AWAY', 'THEY ARE BEHIND YOU', original];
+      promptEl.textContent = decoys[Math.floor(Math.random() * 3)];
+      playGlitchSound();
+      requestAnimationFrame(() => {
+        setTimeout(() => { promptEl.textContent = original; }, 60);
+      });
     }
-    document.getElementById('scanlines').classList.add('glitch');
-    setTimeout(() => document.getElementById('scanlines').classList.remove('glitch'), 500);
   }
 
-  function triggerJumpScare() {
+  /* =========================================================
+     RESEARCHER NOTE POPUP
+  ========================================================= */
+  function showResearcherNote(text) {
     if (state.reducedMotion) return;
-    playScareChord();
-    const flash = document.getElementById('jumpscare');
-    flash.style.opacity = '1';
-    
-    // Distort card drastically
-    const card = document.getElementById('card');
-    if(card) card.classList.add('glitch-heavy');
-    
+    const note = document.createElement('div');
+    const corner = Math.random() < 0.5 ? 'top-right' : 'bottom-left';
+    note.className = 'researcher-note ' + corner;
+    note.style.whiteSpace = 'pre-line';
+    note.textContent = text;
+    document.body.appendChild(note);
+    playGlitchSound();
     setTimeout(() => {
-      flash.style.transition = 'opacity 1s ease';
-      flash.style.opacity = '0';
-      if(card) card.classList.remove('glitch-heavy');
-      setTimeout(() => flash.style.transition = '', 1000);
-    }, 50);
+      if (note.parentNode) note.parentNode.removeChild(note);
+    }, 1500);
   }
 
+  /* =========================================================
+     PROGRESS BAR
+  ========================================================= */
+  function renderProgress(container) {
+    const wrap = document.createElement('div');
+    wrap.className = 'progress-wrap';
+    const track = document.createElement('div');
+    track.className = 'progress-track';
+    const fill = document.createElement('div');
+    fill.className = 'progress-fill';
+    fill.id = 'progressFill';
+    track.appendChild(fill);
+    const label = document.createElement('div');
+    label.className = 'progress-label';
+    label.innerHTML = '<span id="progressPct"></span><span>' + (state.qIndex >= 21 ? 'PHASE 3' : 'INTAKE') + '</span>';
+    wrap.appendChild(track);
+    wrap.appendChild(label);
+    container.appendChild(wrap);
+    updateProgress();
+  }
+
+  function updateProgress() {
+    const fill = document.getElementById('progressFill');
+    const pct = document.getElementById('progressPct');
+    if (!fill || !pct) return;
+    const total = QUESTIONS.length;
+    let realPct = Math.round(((state.qIndex) / total) * 100);
+    const q = QUESTIONS[state.qIndex];
+    const glitch = q && q.flags && q.flags.progressGlitch;
+
+    if (q && q.section === 7) {
+      realPct = 100 + (state.qIndex - 22) * 8;
+      fill.style.width = Math.min(realPct, 150) + '%';
+      pct.textContent = realPct + '%';
+      return;
+    }
+
+    if (glitch === 'stutter') {
+      fill.style.width = Math.max(realPct - 9, 2) + '%';
+      pct.textContent = realPct + '%';
+      setTimeout(() => { fill.style.width = realPct + '%'; }, 650);
+    } else if (glitch === 'jump') {
+      fill.style.width = Math.min(realPct + 14, 100) + '%';
+      pct.textContent = realPct + '%';
+      setTimeout(() => { fill.style.width = realPct + '%'; }, 750);
+    } else if (glitch === 'mismatch') {
+      fill.style.width = realPct + '%';
+      pct.textContent = Math.max(realPct - 22, 1) + '%'; 
+    } else {
+      fill.style.width = realPct + '%';
+      pct.textContent = realPct + '%';
+    }
+  }
+
+  /* =========================================================
+     SPINNER
+  ========================================================= */
+  function withTransitionSpinner(cardEl, cb) {
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner-inline active';
+    spinner.innerHTML = 'loading <span class="spinner-dots"><span>.</span><span>.</span><span>.</span></span>';
+    cardEl.appendChild(spinner);
+    const base = 380;
+    const lingerChance = state.reducedMotion ? 0 : Math.min(state.dread / 10, 0.5);
+    const willLinger = Math.random() < lingerChance;
+    const duration = willLinger ? base * (3 + Math.random() * 2) : base;
+    setTimeout(() => {
+      if (spinner.parentNode) spinner.parentNode.removeChild(spinner);
+      cb();
+    }, duration);
+  }
+
+  /* =========================================================
+     RENDERING
+  ========================================================= */
   const app = document.getElementById('app');
 
-  function renderConsent() {
-    app.innerHTML = `
-      <div class="card" style="padding: 40px;">
-        <div class="section-tag">PROTOCOL NO. MI-77-Theta</div>
-        <h1 style="font-family:var(--current-font); margin:0 0 10px; font-size:22px;">Cognitive & Perceptual Studies</h1>
-        <p style="margin-bottom: 20px; line-height: 1.6; font-size: 15px;">Please verify your baseline before continuing. This intake survey contains audio synthesis and visual anomalies designed to test cognitive stress.</p>
-        <div class="btn-row" style="justify-content: flex-start;">
-          <button class="btn" id="startBtn">Begin Assessment</button>
-        </div>
+  function clearApp() {
+    app.innerHTML = '';
+  }
+
+  // --- NEW: BOOT SCREEN ---
+  function renderStartScreen() {
+    clearApp();
+    const card = document.createElement('div');
+    card.className = 'boot-screen';
+    card.innerHTML = `
+      <div class="boot-eye">
+        <svg viewBox="0 0 100 100">
+          <path d="M 10 50 Q 50 10 90 50 Q 50 90 10 50"/>
+          <circle cx="50" cy="50" r="12" fill="var(--ink)"/>
+        </svg>
       </div>
+      <h1>Cognitive &amp; Perceptual Studies</h1>
+      <div class="protocol-line">Meridian Institute · Terminal Initialization · Rev. 4</div>
+      
+      <div class="allowances-box">
+        <h3>System Allowances required:</h3>
+        
+        <label class="allowance-row">
+          <input type="checkbox" id="allowAudio" checked>
+          <div>
+            <strong>Audio Synthesis</strong>
+            <span class="allowance-desc">Enable atmospheric sound design and auditory feedback. Highly recommended.</span>
+          </div>
+        </label>
+
+        <label class="allowance-row">
+          <input type="checkbox" id="allowShake" checked>
+          <div>
+            <strong>Haptic / Screen Shake</strong>
+            <span class="allowance-desc">Permit sudden screen movements. Disable if prone to motion sickness.</span>
+          </div>
+        </label>
+        
+        <label class="allowance-row">
+          <input type="checkbox" id="allowCam">
+          <div>
+            <strong>Optical Calibration (Webcam)</strong>
+            <span class="allowance-desc">Allow background optical tracking for personalized perceptual feedback. Optional but recommended.</span>
+          </div>
+        </label>
+      </div>
+
+      <button class="btn" id="beginBtn" style="width: 100%; font-size: 16px; padding: 14px;">Initialize Protocol</button>
     `;
-    document.getElementById('startBtn').addEventListener('click', () => {
+    app.appendChild(card);
+    
+    document.getElementById('beginBtn').addEventListener('click', async () => {
+      // Process Checkboxes
+      const audioAllowed = document.getElementById('allowAudio').checked;
+      const shakeAllowed = document.getElementById('allowShake').checked;
+      const camAllowed = document.getElementById('allowCam').checked;
+
+      state.reducedMotion = !shakeAllowed;
+      document.getElementById('shakeToggle').checked = shakeAllowed;
+
+      if(audioAllowed) { toggleSound(true); }
+
+      if(camAllowed) {
+        // Will prompt browser permission
+        await initWebcam();
+      }
+
+      // Start Survey
       state.screen = 'survey';
-      if(!audioCtx && state.soundOn) startAmbientHorror();
-      renderQuestionShell();
+      state.qIndex = 0;
+      applyDread(0);
+      scheduleGlitch();
+      renderSurveyShell();
     });
   }
 
-  function renderQuestionShell() {
-    app.innerHTML = '';
+  function renderMasthead(container) {
     const m = document.createElement('div');
     m.className = 'masthead';
-    m.innerHTML = `<div class="dept">Dept of Cognitive Studies</div><div class="title">Intake Survey</div>`;
-    
-    const p = document.createElement('div');
-    p.className = 'progress-wrap';
-    p.innerHTML = `<div class="progress-track"><div class="progress-fill" id="pFill"></div></div><div class="progress-label"><span id="pText"></span><span>PHASE ${Math.floor(state.qIndex/4)+1}</span></div>`;
-    
-    const c = document.createElement('div');
-    c.className = 'card entering';
-    c.id = 'card';
-    
-    app.appendChild(m); app.appendChild(p); app.appendChild(c);
-    renderQuestion(c);
-    
+    m.innerHTML = `
+      <div class="dept">Department of Cognitive &amp; Perceptual Studies</div>
+      <div class="title">Intake Survey</div>
+      <div class="protocol">Protocol No. MI-77-&#920; · Meridian Institute · Confidential</div>
+    `;
+    container.appendChild(m);
+  }
+
+  function renderSurveyShell() {
+    clearApp();
+    renderMasthead(app);
+    renderProgress(app);
+    const card = document.createElement('div');
+    card.className = 'card entering';
+    card.id = 'card';
+    app.appendChild(card);
+    renderQuestion(card);
     requestAnimationFrame(() => {
-      c.classList.remove('entering');
-      c.classList.add('visible');
+      card.classList.remove('entering');
+      card.classList.add('visible');
     });
   }
 
   function renderQuestion(cardEl) {
     const q = QUESTIONS[state.qIndex];
-    if (!q) return renderEnding();
+    if (!q) { runEnding(); return; }
 
-    applyDread(Math.floor((state.qIndex / QUESTIONS.length) * 10));
-    
-    const fill = document.getElementById('pFill');
-    const pText = document.getElementById('pText');
-    const pct = Math.round((state.qIndex / QUESTIONS.length) * 100);
-    if(fill) fill.style.width = pct + '%';
-    if(pText) pText.textContent = pct + '%';
-
-    if (q.flags?.titleHijack) document.title = "DO NOT LOOK AWAY";
-    if (q.flags?.heavyGlitch) triggerGlitch();
-    if (q.flags?.jumpScare) triggerJumpScare();
-
-    cardEl.innerHTML = `
-      <div class="section-tag">${q.sectionTitle}</div>
-      <div class="prompt">${q.prompt.replace('{name}', state.name)}</div>
-      <div class="error-msg" id="errorMsg"></div>
-      <div class="options" id="optContainer"></div>
-      <div class="btn-row"><button class="btn" id="continueBtn" disabled>Continue</button></div>
-    `;
-
-    const container = document.getElementById('optContainer');
-    const btn = document.getElementById('continueBtn');
-    let selected = null;
-
-    q.options.forEach(opt => {
-      const el = document.createElement('div');
-      el.className = 'option';
-      el.innerHTML = `<span class="dot"></span><span>${opt}</span>`;
-      el.addEventListener('click', () => {
-        [...container.children].forEach(c => c.classList.remove('selected'));
-        el.classList.add('selected');
-        selected = opt;
-        btn.disabled = false;
-        
-        if (q.flags?.overwrite) {
-          triggerGlitch();
-          const alt = q.options.find(x => x !== opt) || opt;
-          setTimeout(() => { if(selected === opt) el.querySelector('span:last-child').textContent = alt; selected = alt; }, 600);
-        }
-      });
-      container.appendChild(el);
-    });
-
-    btn.addEventListener('click', () => {
-      state.answers[q.id] = selected;
-      if(q.id === 'q1') state.name = selected;
-      if(q.effect) q.effect(selected); // Evaluate ending variables
-      
-      btn.disabled = true;
-      cardEl.classList.remove('visible');
-      cardEl.classList.add('leaving');
-      
-      if(state.soundOn && audioCtx) {
-         // UI Click sound
-         const osc = audioCtx.createOscillator();
-         const gn = audioCtx.createGain();
-         osc.frequency.value = 800 - (state.dread * 30);
-         gn.gain.value = 0.05;
-         osc.connect(gn).connect(masterGain);
-         osc.start(); osc.stop(audioCtx.currentTime + 0.05);
-      }
-
-      setTimeout(() => {
-        state.qIndex++;
-        cardEl.classList.remove('leaving');
-        cardEl.classList.add('entering');
-        renderQuestion(cardEl);
-        requestAnimationFrame(() => {
-          cardEl.classList.remove('entering');
-          cardEl.classList.add('visible');
-        });
-      }, 500);
-    });
-  }
-
-  function renderEnding() {
-    app.innerHTML = '';
-    
-    // Determine Ending based on state.endings tally
-    let endingType = 'neutral';
-    if (state.endings.madness > state.endings.conformity && state.endings.madness > state.endings.rebellion) endingType = 'madness';
-    else if (state.endings.rebellion > state.endings.conformity) endingType = 'rebellion';
-    else if (state.endings.conformity > state.endings.rebellion) endingType = 'conformity';
-
-    let text = "";
-    if (endingType === 'conformity') {
-      text = "ASSESSMENT COMPLETE.<br><br>Your baseline is acceptable. Remain compliant. We will send someone to your room shortly.";
-    } else if (endingType === 'rebellion') {
-      text = "ASSESSMENT FAILED.<br><br>Subject is demonstrating hostility. Initiating containment protocols. Do not attempt to leave.";
-    } else {
-      text = "ERROR: REALITY COHESION LOST.<br><br>The walls are breathing. The door is gone. There is only the survey.";
-      triggerJumpScare();
-      if(lfoNode && audioCtx) lfoNode.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 2); // Erratic audio
+    if (q.section > 4 && q.flags && q.flags.titleHijack) {
+      document.title = state.name;
+      const fav = document.getElementById('favicon');
+      fav.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3C/svg%3E";
     }
 
-    const overlay = document.createElement('div');
-    overlay.className = 'fade-to-black';
-    overlay.innerHTML = `<div class="ending-text" id="endText">${text}</div>`;
-    document.body.appendChild(overlay);
-    
-    requestAnimationFrame(() => {
-      overlay.classList.add('active');
-      setTimeout(() => { document.getElementById('endText').classList.add('show'); }, 1500);
+    if (q.flags && q.flags.triggerDownload) {
+      downloadCreepyNote();
+    }
+
+    const dreadForSection = SECTION_DREAD[q.section] !== undefined ? SECTION_DREAD[q.section] : state.dread;
+    applyDread(dreadForSection);
+
+    cardEl.innerHTML = '';
+
+    const tag = document.createElement('div');
+    tag.className = 'section-tag';
+    tag.textContent = 'Section ' + q.section + ' — ' + q.sectionTitle;
+    cardEl.appendChild(tag);
+
+    const promptEl = document.createElement('div');
+    promptEl.className = 'prompt';
+    const promptText = fillName(q.prompt);
+    promptEl.textContent = promptText;
+    cardEl.appendChild(promptEl);
+
+    const errorEl = document.createElement('div');
+    errorEl.className = 'error-msg';
+    cardEl.appendChild(errorEl);
+
+    let selectedValue = null;
+
+    if (q.type === 'single') {
+      const optWrap = document.createElement('div');
+      optWrap.className = 'options';
+      const readback = document.createElement('div');
+      readback.className = 'readback';
       
-      setTimeout(() => {
-         // Auto-close/refresh simulation
-         if(masterGain) masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2);
-         document.getElementById('endText').textContent = "Connection Lost.";
-      }, 7000);
-    });
+      q.options.forEach((opt) => {
+        const o = document.createElement('div');
+        o.className = 'option';
+        o.innerHTML = '<span class="dot"></span><span>' + opt + '</span>';
+        
+        o.addEventListener('click', () => {
+          if (q.flags && q.flags.falseValidation && !state.usedFalseValidation) {
+            state.usedFalseValidation = true;
+            errorEl.textContent = 'Please select a valid response.';
+            playGlitchSound();
+            setTimeout(() => { errorEl.textContent = ''; }, 950);
+            return; // block selection on fake validation
+          }
+          [...optWrap.querySelectorAll('.option')].forEach(el => el.classList.remove('selected'));
+          o.classList.add('selected');
+          selectedValue = opt;
+          readback.textContent = 'Your answer: ' + opt;
+          updateContinueEnabled(true);
+
+          if (q.flags && q.flags.overwrite) {
+            const alt = q.options.find(x => x !== opt) || opt;
+            setTimeout(() => {
+              if (selectedValue === opt) {
+                readback.textContent = 'Your answer: ' + alt;
+                [...optWrap.querySelectorAll('.option')].forEach(el => {
+                  el.classList.toggle('selected', el.textContent.trim() === alt);
+                });
+                selectedValue = alt;
+                playGlitchSound();
+              }
+            }, 1000 + Math.random() * 600);
+          }
+        });
+        optWrap.appendChild(o);
+      });
+      cardEl.appendChild(optWrap);
+      cardEl.appendChild(readback);
+      
+      addContinueRow(cardEl, q, () => selectedValue !== null, () => selectedValue);
+    }
   }
 
-  // Random intermittent glitches
-  setInterval(() => {
-    if(state.screen === 'survey' && state.dread > 3 && Math.random() < (state.dread * 0.05)) triggerGlitch();
-  }, 3000);
+  function addContinueRow(cardEl, q, isValidFn, getValueFn) {
+    const row = document.createElement('div');
+    row.className = 'btn-row';
+    const spinnerHolder = document.createElement('div');
+    row.appendChild(spinnerHolder);
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = 'Continue';
+    btn.disabled = true;
+    btn.id = 'continueBtn';
+    row.appendChild(btn);
+    cardEl.appendChild(row);
 
-  renderConsent();
+    btn.addEventListener('click', () => {
+      const val = getValueFn();
+      state.answers[q.id] = val;
+      
+      // Update global name based on Q1
+      if(q.id === 'q1') { state.name = val; }
+      
+      playChime();
+      btn.disabled = true;
+      withTransitionSpinner(cardEl, () => {
+        advance(cardEl, q);
+      });
+    });
+
+    window._updateContinueEnabled = (v) => { btn.disabled = !v; };
+  }
+
+  function updateContinueEnabled(v) {
+    if (window._updateContinueEnabled) window._updateContinueEnabled(v);
+  }
+
+  function advance(cardEl, q) {
+    if (q.flags && q.flags.researcherNote) {
+      showResearcherNote(q.flags.researcherNote);
+    }
+    cardEl.classList.remove('visible');
+    cardEl.classList.add('leaving');
+    setTimeout(() => {
+      state.qIndex += 1;
+      updateProgress();
+      cardEl.classList.remove('leaving');
+      cardEl.classList.add('entering');
+      renderQuestion(cardEl);
+      requestAnimationFrame(() => {
+        cardEl.classList.remove('entering');
+        cardEl.classList.add('visible');
+      });
+    }, 480);
+  }
+
+  /* =========================================================
+     ENDING SEQUENCE - BRANCHING LOGIC
+  ========================================================= */
+  function runEnding() {
+    state.screen = 'ending';
+    if (glitchTimer) clearTimeout(glitchTimer);
+    document.title = state.name;
+
+    // Tally Ending Metrics Based on Specific Choices
+    let rebellion = 0;
+    let compliance = 0;
+    let madness = 0;
+
+    if (state.answers['q18'] === 'Stop it') rebellion++;
+    else if (state.answers['q18'] === "You're welcome") compliance++;
+    else if (state.answers['q18'] === "Who are you?") madness++;
+
+    if (state.answers['q27'] === 'Let me out of here') rebellion += 2;
+    else if (state.answers['q27'] === 'I will wake up soon') compliance += 2;
+    else if (state.answers['q27'] === 'I accept my fate') madness += 2;
+    else if (state.answers['q27'] === 'There is no way out') madness += 1;
+
+    if (state.answers['q13'] === 'Looking directly at it') madness++;
+    if (state.answers['q24'] === 'At work' || state.answers['q24'] === 'In my bed') compliance++;
+    if (state.answers['q26'] === 'Another version of me' || state.answers['q26'] === 'Teeth') madness++;
+
+    // Determine Final Narrative
+    let finalMessage = "Your responses have confirmed conscious awareness.<br><br>Please remain indoors until further notice.";
+    let subText = "This tab was closed.";
+    let finalColor = "#000000";
+    let textStyle = "color: #4a4a48;";
+
+    if (rebellion > compliance && rebellion > madness) {
+      // Ending 1: Rebellion / Containment Breach
+      finalMessage = "Subject exhibits extreme hostility.<br><br>Containment breached. Run.";
+      subText = "THEY ARE LOOKING FOR YOU.";
+      finalColor = "#3d0c0c"; // Deep blood red
+      textStyle = "color: #ff4a4a; font-weight: bold;";
+      playThud();
+      setTimeout(playThud, 800);
+    } 
+    else if (compliance > rebellion && compliance > madness) {
+      // Ending 2: Compliance / False Normalcy
+      finalMessage = "Subject is docile. Normalcy sustained.<br><br>Return to your routine. Forget this occurred.";
+      subText = "You are safe. Keep your eyes closed.";
+      finalColor = "#f2f1ec"; // Blinding sterile white
+      textStyle = "color: #3a3a38;";
+    } 
+    else {
+      // Ending 3: Madness / Assimilation (Default)
+      finalMessage = "Subject assimilated.<br><br>We will see you in the mirrors.";
+      subText = "Welcome home, " + state.name + ".";
+      finalColor = "#050505";
+      textStyle = "color: #8c8c8c;";
+    }
+
+    clearApp();
+    document.getElementById('watcher-container').style.opacity = '0.3';
+    
+    // Stop webcam if it's on so the final screen is pure
+    toggleWebcam(false);
+    if(state.stream) {
+        state.stream.getTracks().forEach(track => track.stop());
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'ending-overlay';
+    overlay.innerHTML = `<div class="ending-text">${finalMessage}</div>`;
+    document.body.appendChild(overlay);
+    
+    // Ramp up the audio noise
+    if(state.breathGainNode && audioCtx) {
+        state.breathGainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 3);
+        lfoNode.frequency.linearRampToValueAtTime(2, audioCtx.currentTime + 3);
+    }
+
+    setTimeout(() => {
+      const cover = document.createElement('div');
+      cover.className = 'fade-to-color';
+      cover.style.backgroundColor = finalColor;
+      
+      const closed = document.createElement('div');
+      closed.className = 'closed-text';
+      closed.style.cssText = textStyle;
+      closed.textContent = subText;
+      
+      cover.appendChild(closed);
+      document.body.appendChild(cover);
+      
+      requestAnimationFrame(() => {
+        cover.classList.add('active');
+        setTimeout(() => {
+          closed.classList.add('show');
+          stopHorrorAudio(); // End audio
+          try { window.close(); } catch (e) {}
+        }, 2600);
+      });
+    }, 3200);
+  }
+
+  /* =========================================================
+     INIT
+  ========================================================= */
+  renderStartScreen();
 })();
 </script>
 </body>
