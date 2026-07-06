@@ -7,7 +7,7 @@
 </head>
 <body>
 
-  <h1>Cognitive &amp; Perceptual Studies — Intake Survey</h1>
+  <h1>Cognitive &amp; Perceptual Studies - Intake Survey</h1>
 
   <p>An interactive, browser-based psychological horror fiction piece masquerading as a clinical intake survey. As the user progresses through the seemingly innocuous multiple-choice questions, the interface gradually deteriorates, introducing escalating visual glitches, eerie procedural audio, and an underlying sense of dread.</p>
 
